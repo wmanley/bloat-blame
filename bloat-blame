@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 
+from __future__ import division
 from subprocess import Popen, PIPE, check_output
 from optparse import OptionParser
 import os
 import sys
+import time
+
+def bar(progress, width):
+    n = int(progress * width)
+    return n * '#' + (width - n) * ' '
 
 def summarize(filename, extent):
     addr2line = Popen(["addr2line", "-e", filename], stdin=PIPE, stdout=PIPE, stderr=sys.stderr)
@@ -17,11 +23,22 @@ def summarize(filename, extent):
         # Parent
         addr2line.stdin.close()
         summary = {}
+        n=0
+        total=extent[1] - extent[0]
+        starttime = time.time()
         for i in addr2line.stdout:
+            if n % 1000 == 0:
+                t = time.time()
+                if t == starttime or n == 0:
+                    eta = 0
+                else:
+                    eta = (t - starttime) / n * (total - n)
+                sys.stderr.write('[%s] %8d / %d [ETA %2d:%02ds]\r' % (bar(n/total, 40), n, total, eta//60, int(eta) % 60 ))
             (path, line_no) = i.split(':')
             if (path, line_no) not in summary:
                 summary[(path, line_no)] = 0
             summary[(path, line_no)] += 1
+            n += 1
         addr2line.stdout.close()
         return summary
 
