@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+from subprocess import Popen, PIPE, check_output
+from optparse import OptionParser
+import os
+import sys
+
+def summarize(filename, extent):
+    addr2line = Popen(["addr2line", "-e", filename], stdin=PIPE, stdout=PIPE, stderr=sys.stderr)
+    if os.fork() == 0:
+        # Child
+        addr2line.stdout.close()
+        for i in xrange(extent[0], extent[1]):
+            addr2line.stdin.write(hex(i)+'\n')
+        sys.exit(0)
+    else:
+        # Parent
+        addr2line.stdin.close()
+        summary = {}
+        for i in addr2line.stdout:
+            (path, line_no) = i.split(':')
+            if (path, line_no) not in summary:
+                summary[(path, line_no)] = 0
+            summary[(path, line_no)] += 1
+        addr2line.stdout.close()
+        return summary
+
+def get_text_extents(filename):
+    """
+    Gets the extents of the .text section of the file
+    """
+    for line in check_output(["readelf", "--section-headers", filename]).split('\n'):
+        if line[7:12] == ".text":
+            addr=int(line[41:49], 16)
+            size=int(line[57:63], 16)
+            return (addr, addr+size)
+#    raise ... <- TODO
+
+def main(argv):
+    parser = OptionParser("usage: %prog [options] lib1")
+    parser.add_option("--extent", dest="extent", help="The byte range of file to analyse [all|.text]", default="all")
+
+    (options, args) = parser.parse_args(argv[1:])
+
+    if len(args) != 1:
+        sys.stderr('No binary provided for analysis')
+        parser.print_usage(sys.stderr)
+        return 1
+
+    filename = args[0]
+    if options.extent == 'all':
+        extent=(0, os.path.getsize(filename))
+    elif options.extent == '.text':
+        extent=get_text_extents(filename)
+    else:
+        parser.print_usage(sys.stderr)
+        return 1
+    summary = summarize(filename, extent)
+    
+    freqs = [(v, k[0], k[1]) for k, v in summary.iteritems()]
+    freqs.sort(cmp, lambda x: x[0])
+    for i in freqs:
+        sys.stdout.write("%d\t%s:%s" % i)
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
