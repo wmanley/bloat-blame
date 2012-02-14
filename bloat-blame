@@ -17,7 +17,7 @@
 ### Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from __future__ import division
-from subprocess import Popen, PIPE, check_output
+from subprocess import Popen, PIPE
 from optparse import OptionParser
 import os
 import sys
@@ -62,7 +62,8 @@ def get_text_extents(filename):
     """
     Gets the extents of the .text section of the file
     """
-    for line in check_output(["readelf", "--section-headers", filename]).split('\n'):
+    readelf = Popen(["readelf", "--section-headers", filename], stdout=PIPE)
+    for line in readelf.stdout:
         if line[7:12] == ".text":
             addr=int(line[41:49], 16)
             size=int(line[57:63], 16)
