@@ -62,11 +62,12 @@ def get_text_extents(filename):
     """
     Gets the extents of the .text section of the file
     """
-    readelf = Popen(["readelf", "--section-headers", filename], stdout=PIPE)
+    readelf = Popen(["readelf", "--wide", "--section-headers", filename], stdout=PIPE)
     for line in readelf.stdout:
         if line[7:12] == ".text":
-            addr=int(line[41:49], 16)
-            size=int(line[57:63], 16)
+            r = line[7:].split()
+            addr=int(r[2], 16)
+            size=int(r[4], 16)
             return (addr, addr+size)
 #    raise ... <- TODO
 
