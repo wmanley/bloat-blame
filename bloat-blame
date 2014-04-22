@@ -23,12 +23,15 @@ import os
 import sys
 import time
 
+
 def bar(progress, width):
     n = int(progress * width)
     return n * '#' + (width - n) * ' '
 
+
 def summarize(filename, extent):
-    addr2line = Popen(["addr2line", "-e", filename], stdin=PIPE, stdout=PIPE, stderr=sys.stderr)
+    addr2line = Popen(["addr2line", "-e", filename], stdin=PIPE, stdout=PIPE,
+                      stderr=sys.stderr)
     if os.fork() == 0:
         # Child
         addr2line.stdout.close()
@@ -39,8 +42,8 @@ def summarize(filename, extent):
         # Parent
         addr2line.stdin.close()
         summary = {}
-        n=0
-        total=extent[1] - extent[0]
+        n = 0
+        total = extent[1] - extent[0]
         starttime = time.time()
         for i in addr2line.stdout:
             if n % 1000 == 0:
@@ -49,7 +52,9 @@ def summarize(filename, extent):
                     eta = 0
                 else:
                     eta = (t - starttime) / n * (total - n)
-                sys.stderr.write('[%s] %8d / %d [ETA %2d:%02ds]\r' % (bar(n/total, 40), n, total, eta//60, int(eta) % 60 ))
+                sys.stderr.write('[%s] %8d / %d [ETA %2d:%02ds]\r' % (
+                                 bar(n / total, 40), n, total, eta // 60,
+                                 int(eta) % 60))
             (path, line_no) = i.split(':')
             if (path, line_no) not in summary:
                 summary[(path, line_no)] = 0
@@ -58,22 +63,27 @@ def summarize(filename, extent):
         addr2line.stdout.close()
         return summary
 
+
 def get_text_extents(filename):
     """
     Gets the extents of the .text section of the file
     """
-    readelf = Popen(["readelf", "--wide", "--section-headers", filename], stdout=PIPE)
+    readelf = Popen(["readelf", "--wide", "--section-headers", filename],
+                    stdout=PIPE)
     for line in readelf.stdout:
         if line[7:12] == ".text":
             r = line[7:].split()
-            addr=int(r[2], 16)
-            size=int(r[4], 16)
+            addr = int(r[2], 16)
+            size = int(r[4], 16)
             return (addr, addr+size)
 #    raise ... <- TODO
 
+
 def main(argv):
     parser = OptionParser("usage: %prog [options] lib1")
-    parser.add_option("--extent", dest="extent", help="The byte range of file to analyse [all|.text]", default="all")
+    parser.add_option("--extent", dest="extent",
+                      help="The byte range of file to analyse [all|.text]",
+                      default="all")
 
     (options, args) = parser.parse_args(argv[1:])
 
@@ -84,14 +94,14 @@ def main(argv):
 
     filename = args[0]
     if options.extent == 'all':
-        extent=(0, os.path.getsize(filename))
+        extent = (0, os.path.getsize(filename))
     elif options.extent == '.text':
-        extent=get_text_extents(filename)
+        extent = get_text_extents(filename)
     else:
         parser.print_usage(sys.stderr)
         return 1
     summary = summarize(filename, extent)
-    
+
     freqs = [(v, k[0], k[1]) for k, v in summary.iteritems()]
     freqs.sort(cmp, lambda x: x[0])
     for i in freqs:
