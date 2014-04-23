@@ -88,7 +88,7 @@ def main(argv):
     (options, args) = parser.parse_args(argv[1:])
 
     if len(args) != 1:
-        sys.stderr('No binary provided for analysis')
+        sys.stderr.write('No binary provided for analysis\n')
         parser.print_usage(sys.stderr)
         return 1
 
